@@ -127,7 +127,6 @@
   const pdfCtx = pdfCanvas.getContext('2d');
 
   const copyBtn = document.getElementById('copy-btn');
-  // 自動生成 QR Code，不再使用生成按鈕
   const qrCodeContainer = document.getElementById('generated-qr-code');
 
   // 儲存所有頁面掃描到的小 QR Code 編號（陣列）
@@ -162,11 +161,14 @@
             outputDiv.textContent += `❌ 第 ${pageNum} 頁：未找到小 QR Code\n`;
           }
         }
+        
+        // 顯示成功解析的 QR Code 總數
+        outputDiv.textContent += `\n🎉 成功解析 QR Code 總數：${allValidCodes.length}`;
 
         // 若至少有一頁掃到 QR Code，自動生成 QR Code
         if (allValidCodes.length > 0) {
           copyBtn.style.display = 'inline-block';
-          // 這裡使用 join(' ') 確保每個編號間有一個空格
+          // 使用 join(' ') 確保每個編號間有一個空格
           const combined = allValidCodes.join(' ');
           console.log("Combined QR code text:", combined);  // 除錯用
 
@@ -175,7 +177,7 @@
             text: combined,
             width: 220,
             height: 220,
-            correctLevel: QRCode.CorrectLevel.L  // 若資料太長，可考慮降低錯誤更正等級
+            correctLevel: QRCode.CorrectLevel.L
           });
         }
       } catch (err) {
@@ -187,7 +189,6 @@
 
   // 複製按鈕事件：將所有編碼逐行複製到剪貼簿
   copyBtn.addEventListener('click', () => {
-    // 複製時每個編號換行
     const combinedForCopy = allValidCodes.join('\n');
     navigator.clipboard.writeText(combinedForCopy).then(() => {
       alert("✅ 已複製所有編碼到剪貼簿!");
@@ -202,7 +203,6 @@
    * 回傳 QR Code 內容 (string)，若無則回傳 null
    */
   async function processPage(page) {
-    // 設定渲染縮放比（可根據實際需求調整）
     const scale = 2.0;
     const viewport = page.getViewport({ scale });
     pdfCanvas.width = viewport.width;
@@ -213,27 +213,22 @@
       viewport: viewport
     }).promise;
   
-    // 第一次掃描
     let imageData = pdfCtx.getImageData(0, 0, pdfCanvas.width, pdfCanvas.height);
     let code1 = jsQR(imageData.data, imageData.width, imageData.height);
     if (!code1) {
       return null;
     }
   
-    // 遮罩第一次找到的 QR Code 區域，避免重複偵測
     maskQrCodeArea(imageData, code1.location);
     pdfCtx.putImageData(imageData, 0, 0);
   
-    // 第二次掃描
     imageData = pdfCtx.getImageData(0, 0, pdfCanvas.width, pdfCanvas.height);
     let code2 = jsQR(imageData.data, imageData.width, imageData.height);
   
-    // 若只找到一個 QR Code，就回傳該編碼
     if (!code2) {
       return code1.data;
     }
   
-    // 比較兩個 QR Code 的面積，選擇較小的那一個
     const area1 = getQrCodeArea(code1.location);
     const area2 = getQrCodeArea(code2.location);
     const smallCode = (area1 < area2) ? code1 : code2;
