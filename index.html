@@ -111,7 +111,6 @@
   
     <div class="btn-container">
       <button id="copy-btn" style="display:none;">📋 複製所有編碼</button>
-      <button id="generate-btn" style="display:none;">🔳 生成新 QR Code</button>
     </div>
     
     <!-- 生成的新 QR Code 顯示區 -->
@@ -128,10 +127,10 @@
   const pdfCtx = pdfCanvas.getContext('2d');
 
   const copyBtn = document.getElementById('copy-btn');
-  const generateBtn = document.getElementById('generate-btn');
+  // 自動生成 QR Code，不再使用生成按鈕
   const qrCodeContainer = document.getElementById('generated-qr-code');
 
-  // 儲存所有頁面掃描到的小 QR Code 字串（陣列）
+  // 儲存所有頁面掃描到的小 QR Code 編號（陣列）
   let allValidCodes = [];
 
   fileInput.addEventListener('change', async (e) => {
@@ -142,7 +141,6 @@
     outputDiv.textContent = '';
     qrCodeContainer.innerHTML = '';
     copyBtn.style.display = 'none';
-    generateBtn.style.display = 'none';
     allValidCodes = [];
 
     const fileReader = new FileReader();
@@ -165,10 +163,20 @@
           }
         }
 
-        // 若至少有一頁掃到 QR Code，顯示按鈕
+        // 若至少有一頁掃到 QR Code，自動生成 QR Code
         if (allValidCodes.length > 0) {
           copyBtn.style.display = 'inline-block';
-          generateBtn.style.display = 'inline-block';
+          // 這裡使用 join(' ') 確保每個編號間有一個空格
+          const combined = allValidCodes.join(' ');
+          console.log("Combined QR code text:", combined);  // 除錯用
+
+          qrCodeContainer.innerHTML = ''; // 清空之前的內容
+          new QRCode(qrCodeContainer, {
+            text: combined,
+            width: 220,
+            height: 220,
+            correctLevel: QRCode.CorrectLevel.L  // 若資料太長，可考慮降低錯誤更正等級
+          });
         }
       } catch (err) {
         outputDiv.textContent = `⚠️ 錯誤：${err.message}`;
@@ -179,22 +187,12 @@
 
   // 複製按鈕事件：將所有編碼逐行複製到剪貼簿
   copyBtn.addEventListener('click', () => {
-    const combined = allValidCodes.join('\n');  // 每個編碼一行
-    navigator.clipboard.writeText(combined).then(() => {
+    // 複製時每個編號換行
+    const combinedForCopy = allValidCodes.join('\n');
+    navigator.clipboard.writeText(combinedForCopy).then(() => {
       alert("✅ 已複製所有編碼到剪貼簿!");
     }).catch(err => {
       alert("⚠️ 複製失敗：" + err.message);
-    });
-  });
-
-  // 生成按鈕事件：生成包含所有編碼（以空格分隔）的 QR Code
-  generateBtn.addEventListener('click', () => {
-    const combined = allValidCodes.join(' ');
-    qrCodeContainer.innerHTML = ''; // 清空之前的內容
-    new QRCode(qrCodeContainer, {
-      text: combined,
-      width: 220,
-      height: 220
     });
   });
 
