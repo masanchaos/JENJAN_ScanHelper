@@ -202,21 +202,20 @@
    * 渲染頁面 → 第一次掃描 → 遮罩第一次的 QR Code → 第二次掃描 → 比較面積並選擇較小的 QR Code
    * 回傳 QR Code 內容 (string)，若無則回傳 null
    */
-  async function processPage(page) {
-    const scale = 2.0;
-    const viewport = page.getViewport({ scale });
-    pdfCanvas.width = viewport.width;
-    pdfCanvas.height = viewport.height;
-  
-    await page.render({
-      canvasContext: pdfCtx,
-      viewport: viewport
-    }).promise;
-  
-    let imageData = pdfCtx.getImageData(0, 0, pdfCanvas.width, pdfCanvas.height);
-    let code1 = jsQR(imageData.data, imageData.width, imageData.height);
-    if (!code1) {
-      return null;
+      async function processPage(page) {
+      const scale = 3.0;  // 調高解析度
+      const viewport = page.getViewport({ scale });
+      pdfCanvas.width = viewport.width;
+      pdfCanvas.height = viewport.height;
+    
+      await page.render({ canvasContext: pdfCtx, viewport }).promise;
+    
+      let imageData = pdfCtx.getImageData(0, 0, pdfCanvas.width, pdfCanvas.height);
+      const firstCode = jsQR(imageData.data, imageData.width, imageData.height);
+      if (!firstCode) return null;
+    
+      // 不遮罩直接回傳（改測試效果）
+      return firstCode.data;
     }
   
     maskQrCodeArea(imageData, code1.location);
