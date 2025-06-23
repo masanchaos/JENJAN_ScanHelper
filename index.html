@@ -203,7 +203,7 @@
    * 回傳 QR Code 內容 (string)，若無則回傳 null
    */
       async function processPage(page) {
-      const scale = 4.0;  // 調高解析度
+      const scale = 3.5;  // 調高解析度
       const viewport = page.getViewport({ scale });
       pdfCanvas.width = viewport.width;
       pdfCanvas.height = viewport.height;
