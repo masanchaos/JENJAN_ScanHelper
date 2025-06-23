@@ -129,14 +129,12 @@
   const copyBtn = document.getElementById('copy-btn');
   const qrCodeContainer = document.getElementById('generated-qr-code');
 
-  // 儲存所有頁面掃描到的小 QR Code 編號（陣列）
   let allValidCodes = [];
 
   fileInput.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // 清空舊資料
     outputDiv.textContent = '';
     qrCodeContainer.innerHTML = '';
     copyBtn.style.display = 'none';
@@ -146,11 +144,9 @@
     fileReader.onload = async function() {
       const typedarray = new Uint8Array(this.result);
       try {
-        // 載入 PDF 檔案
         const pdf = await pdfjsLib.getDocument(typedarray).promise;
         outputDiv.textContent += `📄 PDF 總頁數：${pdf.numPages}\n\n`;
 
-        // 依序處理每一頁
         for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
           const page = await pdf.getPage(pageNum);
           const codeData = await processPage(page);
@@ -161,18 +157,13 @@
             outputDiv.textContent += `❌ 第 ${pageNum} 頁：未找到小 QR Code\n`;
           }
         }
-        
-        // 顯示成功解析的 QR Code 總數
+
         outputDiv.textContent += `\n🎉 成功解析 QR Code 總數：${allValidCodes.length}`;
 
-        // 若至少有一頁掃到 QR Code，自動生成 QR Code
         if (allValidCodes.length > 0) {
           copyBtn.style.display = 'inline-block';
-          // 使用 join(' ') 確保每個編號間有一個空格
           const combined = allValidCodes.join(' ');
-          console.log("Combined QR code text:", combined);  // 除錯用
-
-          qrCodeContainer.innerHTML = ''; // 清空之前的內容
+          qrCodeContainer.innerHTML = '';
           new QRCode(qrCodeContainer, {
             text: combined,
             width: 220,
@@ -187,7 +178,6 @@
     fileReader.readAsArrayBuffer(file);
   });
 
-  // 複製按鈕事件：將所有編碼逐行複製到剪貼簿
   copyBtn.addEventListener('click', () => {
     const combinedForCopy = allValidCodes.join('\n');
     navigator.clipboard.writeText(combinedForCopy).then(() => {
@@ -197,91 +187,21 @@
     });
   });
 
-  /**
-   * 處理單一頁面：
-   * 渲染頁面 → 第一次掃描 → 遮罩第一次的 QR Code → 第二次掃描 → 比較面積並選擇較小的 QR Code
-   * 回傳 QR Code 內容 (string)，若無則回傳 null
-   */
-      async function processPage(page) {
-      const scale = 3.5;  // 調高解析度
-      const viewport = page.getViewport({ scale });
-      pdfCanvas.width = viewport.width;
-      pdfCanvas.height = viewport.height;
-    
-      await page.render({ canvasContext: pdfCtx, viewport }).promise;
-    
-      let imageData = pdfCtx.getImageData(0, 0, pdfCanvas.width, pdfCanvas.height);
-      const firstCode = jsQR(imageData.data, imageData.width, imageData.height);
-      if (!firstCode) return null;
-    
-      // 不遮罩直接回傳（改測試效果）
-      return firstCode.data;
-    }
-  
-    maskQrCodeArea(imageData, code1.location);
-    pdfCtx.putImageData(imageData, 0, 0);
-  
-    imageData = pdfCtx.getImageData(0, 0, pdfCanvas.width, pdfCanvas.height);
-    let code2 = jsQR(imageData.data, imageData.width, imageData.height);
-  
-    if (!code2) {
-      return code1.data;
-    }
-  
-    const area1 = getQrCodeArea(code1.location);
-    const area2 = getQrCodeArea(code2.location);
-    const smallCode = (area1 < area2) ? code1 : code2;
-    return smallCode.data;
-  }
-  
-  /**
-   * 將指定 QR Code 的外接矩形填白 (遮罩)
-   */
-  function maskQrCodeArea(imageData, location) {
-    const { data, width } = imageData;
-    const { minX, maxX, minY, maxY } = getBoundingBox(location);
-    for (let y = minY; y < maxY; y++) {
-      for (let x = minX; x < maxX; x++) {
-        const idx = (y * width + x) * 4;
-        data[idx] = 255;
-        data[idx + 1] = 255;
-        data[idx + 2] = 255;
-        data[idx + 3] = 255;
-      }
-    }
-  }
-  
-  /**
-   * 取得 QR Code 的外接矩形座標
-   */
-  function getBoundingBox(location) {
-    const xs = [
-      location.topLeftCorner.x,
-      location.topRightCorner.x,
-      location.bottomLeftCorner.x,
-      location.bottomRightCorner.x
-    ];
-    const ys = [
-      location.topLeftCorner.y,
-      location.topRightCorner.y,
-      location.bottomLeftCorner.y,
-      location.bottomRightCorner.y
-    ];
-    return {
-      minX: Math.max(0, Math.floor(Math.min(...xs))),
-      maxX: Math.floor(Math.max(...xs)),
-      minY: Math.max(0, Math.floor(Math.min(...ys))),
-      maxY: Math.floor(Math.max(...ys))
-    };
-  }
-  
-  /**
-   * 計算 QR Code 的外接矩形面積
-   */
-  function getQrCodeArea(location) {
-    const { minX, maxX, minY, maxY } = getBoundingBox(location);
-    return (maxX - minX) * (maxY - minY);
+  // ✅ 這是新版 processPage：高解析 + 單掃描
+  async function processPage(page) {
+    const scale = 3.5;
+    const viewport = page.getViewport({ scale });
+    pdfCanvas.width = viewport.width;
+    pdfCanvas.height = viewport.height;
+
+    await page.render({ canvasContext: pdfCtx, viewport }).promise;
+
+    const imageData = pdfCtx.getImageData(0, 0, pdfCanvas.width, pdfCanvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+    return code ? code.data : null;
   }
 </script>
+
 </body>
 </html>
